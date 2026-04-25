@@ -65,8 +65,8 @@ def calc_water_pressure(z, water_level):
     return GAMMA_W * (z - water_level)
 
 def integrate_force(depths, pressures):
-    force = np.trapz(pressures, depths)
-    moment = np.trapz(pressures * depths, depths)
+    force = np.trapezoid(pressures, depths)
+    moment = np.trapezoid(pressures * depths, depths)
     if force < 1e-6:
         return 0.0, 0.0
     return force, moment / force
