@@ -9,7 +9,7 @@ plt.rcParams["font.sans-serif"] = ["SimHei"]  # 解决中文显示
 plt.rcParams["axes.unicode_minus"] = False  # 解决负号显示
 
 # 水重度
-GAMMA_W = 9.81
+GAMMA_W = 10
 
 
 # =========================
