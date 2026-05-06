@@ -62,7 +62,7 @@ def calc_water_pressure(z, water_level):
     return 0.0 if z <= water_level else GAMMA_W * (z - water_level)
 
 # UI 优化（参考你给的界面风格）
-st.markdown("## 🏗️ 多层土压力计算工具（工程版）")
+st.markdown("## 🏗️ 多层土压力计算工具")
 st.markdown("### 👉 支持：主动/被动 + 水土分算/合算 + 支撑 + 弯矩")
 
 col1, col2 = st.columns([1,2])
