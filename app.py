@@ -5,7 +5,7 @@ import streamlit as st
 
 st.set_page_config(page_title="基坑土压力计算工具", layout="wide")
 
-GAMMA_W = 9.81
+GAMMA_W = 10
 
 # 计算函数（保持原函数不变）
 def calc_Ka(phi):
@@ -86,10 +86,10 @@ with col1:
     layers_data = []
     for i in range(num_layers):
         st.markdown(f"第{i+1}层")
-        h = st.number_input(f"厚度 h{i+1}",2.0,key=f"h{i}")
-        gamma = st.number_input(f"重度 γ{i+1}",18.0,key=f"g{i}")
-        phi = st.number_input(f"内摩擦角 φ{i+1}",20.0,key=f"p{i}")
-        c = st.number_input(f"粘聚力 c{i+1}",10.0,key=f"c{i}")
+        h = st.number_input(f"厚度 h{i+1}",0,key=f"h{i}")
+        gamma = st.number_input(f"重度 γ{i+1}",0,key=f"g{i}")
+        phi = st.number_input(f"内摩擦角 φ{i+1}",0,key=f"p{i}")
+        c = st.number_input(f"粘聚力 c{i+1}",0,key=f"c{i}")
         layers_data.append([h,gamma,phi,c])
 
     layers = pd.DataFrame(layers_data,columns=['h','gamma','phi','c'])
