@@ -5,7 +5,7 @@ import streamlit as st
 
 st.set_page_config(page_title="基坑土压力计算工具", layout="wide")
 
-GAMMA_W = 9.81
+GAMMA_W = 10
 
 # 计算函数
 def calc_Ka(phi):
