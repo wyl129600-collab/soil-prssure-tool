@@ -184,4 +184,4 @@ with col2:
         ax3.legend()
         st.pyplot(fig3)
 
-st.markdown("说明：已增加最大剪力识别，并对所有图形进行清晰标注。")
+st.markdown("说明：可计算主动土压力和被动土压力，并考虑有无地下水情况。")
