@@ -62,7 +62,7 @@ def calc_water_pressure(z, water_level):
     return 0.0 if z <= water_level else GAMMA_W * (z - water_level)
 
 # UI
-st.title("📊 基坑支护计算工具（最大弯矩+最大剪力）")
+st.title("📊 基坑支护计算工具（主动土压力+被动土压力+最大弯矩+最大剪力）")
 
 col1, col2 = st.columns([1,2])
 
