@@ -7,7 +7,7 @@ st.set_page_config(page_title="基坑土压力计算工具", layout="wide")
 
 GAMMA_W = 10
 
-# 计算函数（保持不变）
+# 计算函数（保持原函数不变）
 def calc_Ka(phi):
     return np.tan(np.pi/4 - np.radians(phi)/2) ** 2
 
@@ -30,28 +30,32 @@ def calc_effective_stress(layers, z, water_level):
     u = 0 if z <= water_level else GAMMA_W * (z - water_level)
     return sigma - u
 
-def calc_active_pressure(layers, z, water_level, mode):
+# 主动土压力（加入地表超载q）
+def calc_active_pressure(layers, z, water_level, mode, q=0.0):
     depth, sigma_a = 0.0, 0.0
     for _, row in layers.iterrows():
         if z > depth:
             dz = min(row['h'], z - depth)
             Ka = calc_Ka(row['phi'])
             sv = calc_vertical_stress(layers, depth + dz) if mode=="水土分算" else calc_effective_stress(layers, depth + dz, water_level)
-            sigma = Ka * sv - 2 * row['c'] * np.sqrt(Ka)
+            # 地表均布荷载产生附加应力 q*Ka
+            sigma = Ka * (sv + q) - 2 * row['c'] * np.sqrt(Ka)
             sigma_a = max(sigma, 0.0)
             depth += row['h']
         else:
             break
     return sigma_a
 
-def calc_passive_pressure(layers, z, water_level, mode, reduction=0.7):
+# 被动土压力（加入地表超载q）
+def calc_passive_pressure(layers, z, water_level, mode, reduction=0.7, q=0.0):
     depth, sigma_p = 0.0, 0.0
     for _, row in layers.iterrows():
         if z > depth:
             dz = min(row['h'], z - depth)
             Kp = calc_Kp(row['phi'])
             sv = calc_vertical_stress(layers, depth + dz) if mode=="水土分算" else calc_effective_stress(layers, depth + dz, water_level)
-            sigma = Kp * sv + 2 * row['c'] * np.sqrt(Kp)
+            # 地表均布荷载产生附加应力 q*Kp
+            sigma = Kp * (sv + q) + 2 * row['c'] * np.sqrt(Kp)
             sigma_p = max(sigma, 0.0) * reduction
             depth += row['h']
         else:
@@ -61,9 +65,9 @@ def calc_passive_pressure(layers, z, water_level, mode, reduction=0.7):
 def calc_water_pressure(z, water_level):
     return 0.0 if z <= water_level else GAMMA_W * (z - water_level)
 
-# UI 优化（参考你给的界面风格）
-st.markdown("## 🏗️ 多层土压力计算工具")
-st.markdown("### 👉 支持：主动/被动 + 水土分算/合算 + 支撑 + 弯矩")
+# UI 优化
+st.markdown("## 🏗️ 多层土压力计算工具（含地表均布荷载）")
+st.markdown("### 👉 支持：主动/被动 + 水土分算/合算 + 地表超载 + 支撑 + 弯矩剪力")
 
 col1, col2 = st.columns([1,2])
 
@@ -71,6 +75,8 @@ with col1:
     st.subheader("📥 基本参数")
 
     H = st.number_input("挡土墙高度 H (m)", value=6.0)
+    # 新增：地表均布荷载
+    q_surface = st.number_input("地表均布荷载 q (kPa)", value=10.0, min_value=0.0)
 
     num_layers = st.number_input("土层数量",1,10,2)
 
@@ -80,10 +86,10 @@ with col1:
     layers_data = []
     for i in range(num_layers):
         st.markdown(f"第{i+1}层")
-        h = st.number_input(f"厚度 h{i+1}",2.0,key=f"h{i}")
-        gamma = st.number_input(f"重度 γ{i+1}",18.0,key=f"g{i}")
-        phi = st.number_input(f"内摩擦角 φ{i+1}",20.0,key=f"p{i}")
-        c = st.number_input(f"粘聚力 c{i+1}",10.0,key=f"c{i}")
+        h = st.number_input(f"厚度 h{i+1}",0,key=f"h{i}")
+        gamma = st.number_input(f"重度 γ{i+1}",0,key=f"g{i}")
+        phi = st.number_input(f"内摩擦角 φ{i+1}",0,key=f"p{i}")
+        c = st.number_input(f"粘聚力 c{i+1}",0,key=f"c{i}")
         layers_data.append([h,gamma,phi,c])
 
     layers = pd.DataFrame(layers_data,columns=['h','gamma','phi','c'])
@@ -103,15 +109,11 @@ with col1:
 
 with col2:
     if run:
-        # =========================
         # 挡土墙高度校核
-        # =========================
         total_layer_depth = layers['h'].sum()
 
         if H > total_layer_depth:
             st.warning(f"⚠️ 挡土墙高度 H={H:.2f} m 大于土层总厚度 {total_layer_depth:.2f} m")
-
-            # 自动补层（采用最后一层参数）
             last_layer = layers.iloc[-1]
             extra_h = H - total_layer_depth
 
@@ -127,8 +129,9 @@ with col2:
         pa, pp, net = [], [], []
 
         for depth in z:
-            a = calc_active_pressure(layers, depth, water_out, mode)
-            p = calc_passive_pressure(layers, depth, water_in, mode, reduction)
+            # 传入地表荷载 q_surface
+            a = calc_active_pressure(layers, depth, water_out, mode, q=q_surface)
+            p = calc_passive_pressure(layers, depth, water_in, mode, reduction, q=q_surface)
 
             u_out = calc_water_pressure(depth, water_out) if use_water else 0
             u_in = calc_water_pressure(depth, water_in) if use_water else 0
@@ -162,19 +165,18 @@ with col2:
         Vmax = np.max(np.abs(shear))
         z_v = z[np.argmax(np.abs(shear))]
 
-        # =========================
-        # 顶部结果卡片（仿你截图风格）
-        # =========================
-        c1,c2,c3,c4 = st.columns(4)
+        # 顶部结果卡片
+        c1,c2,c3,c4,c5 = st.columns(5)
 
         c1.metric("最大弯矩", f"{Mmax:.2f}", f"位置 {z_m:.2f}m")
         c2.metric("最大剪力", f"{Vmax:.2f}", f"位置 {z_v:.2f}m")
         c3.metric("支撑反力", f"{R:.2f}")
         c4.metric("挡土墙高度", f"{H:.2f} m")
+        c5.metric("地表超载", f"{q_surface:.2f} kPa")
 
         st.markdown("---")
 
-        # 插入你指定的格式化结果表格（完全按你要求原样加入）
+        # 计算结果表
         df = pd.DataFrame({
             "深度(m)": z,
             "主动土压力(kPa)": pa,
@@ -184,7 +186,7 @@ with col2:
             "弯矩(kN·m)": moment
         })
 
-        st.subheader("📋 计算结果表（工程格式）")
+        st.subheader("📋 计算结果表（含地表超载）")
 
         st.dataframe(
             df.style.format({
@@ -200,34 +202,35 @@ with col2:
 
         st.markdown("---")
 
-        # =========================
-        # 图形优化
-        # =========================
-
+        # 图形
+        plt.rcParams["font.family"] = ["SimHei", "WenQuanYi Micro Hei"]
         fig, ax = plt.subplots()
         ax.plot(pa, z, label="主动土压力")
         ax.plot(pp, z, label="被动土压力")
         ax.plot(net, z, label="净压力")
         ax.invert_yaxis()
         ax.legend()
-        ax.set_title("土压力分布")
+        ax.grid(alpha=0.3)
+        ax.set_title("土压力分布（含地表均布荷载）")
         st.pyplot(fig)
 
         fig2, ax2 = plt.subplots()
         ax2.plot(shear, z, label="剪力")
-        ax2.scatter(Vmax, z_v)
+        ax2.scatter(Vmax, z_v, color='red')
         ax2.text(Vmax, z_v, f"Vmax={Vmax:.1f}")
         ax2.invert_yaxis()
+        ax2.grid(alpha=0.3)
         ax2.set_title("剪力图")
         st.pyplot(fig2)
 
         fig3, ax3 = plt.subplots()
         ax3.plot(moment, z, label="弯矩")
-        ax3.scatter(Mmax, z_m)
+        ax3.scatter(Mmax, z_m, color='red')
         ax3.text(Mmax, z_m, f"Mmax={Mmax:.1f}")
         ax3.invert_yaxis()
+        ax3.grid(alpha=0.3)
         ax3.set_title("弯矩图")
         st.pyplot(fig3)
 
 st.markdown("---")
-st.markdown("说明：界面已优化，并引入挡土墙高度控制计算深度。")
+st.markdown("说明:无。")
