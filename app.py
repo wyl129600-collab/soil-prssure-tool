@@ -79,7 +79,7 @@ with col1:
 
     layers_data = []
     for i in range(num_layers):
-        st.markdown(f"**第{i+1}层**")
+        st.markdown(f"第{i+1}层")
         h = st.number_input(f"厚度 h{i+1}",2.0,key=f"h{i}")
         gamma = st.number_input(f"重度 γ{i+1}",18.0,key=f"g{i}")
         phi = st.number_input(f"内摩擦角 φ{i+1}",20.0,key=f"p{i}")
@@ -174,6 +174,32 @@ with col2:
 
         st.markdown("---")
 
+        # 插入你指定的格式化结果表格（完全按你要求原样加入）
+        df = pd.DataFrame({
+            "深度(m)": z,
+            "主动土压力(kPa)": pa,
+            "被动土压力(kPa)": pp,
+            "净土压力(kPa)": net,
+            "剪力(kN)": shear,
+            "弯矩(kN·m)": moment
+        })
+
+        st.subheader("📋 计算结果表（工程格式）")
+
+        st.dataframe(
+            df.style.format({
+                "深度(m)": "{:.2f}",
+                "主动土压力(kPa)": "{:.2f}",
+                "被动土压力(kPa)": "{:.2f}",
+                "净土压力(kPa)": "{:.2f}",
+                "剪力(kN)": "{:.2f}",
+                "弯矩(kN·m)": "{:.2f}"
+            }),
+            use_container_width=True
+        )
+
+        st.markdown("---")
+
         # =========================
         # 图形优化
         # =========================
@@ -204,4 +230,4 @@ with col2:
         st.pyplot(fig3)
 
 st.markdown("---")
-st.markdown("说明：主动土压力和被动土压力，通过挡土墙高度控制计算")
+st.markdown("说明：界面已优化，并引入挡土墙高度控制计算深度。")
